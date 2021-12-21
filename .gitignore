@@ -54,3 +54,5 @@ addons/source-python/docs/plugins/
 
 # Linux temp files
 *~
+
+src/bazel-*
