@@ -56,3 +56,5 @@ addons/source-python/docs/plugins/
 *~
 
 src/bazel-*
+
+**/*.sublime-workspace
