@@ -1,0 +1,167 @@
+workspace(name = "source-python")
+
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository", "new_git_repository")
+
+git_repository(
+    name = "rules_foreign_cc",
+    branch = "main",
+    remote = "https://github.com/bazelbuild/rules_foreign_cc",
+)
+
+load("@rules_foreign_cc//foreign_cc:repositories.bzl", "rules_foreign_cc_dependencies")
+rules_foreign_cc_dependencies()
+
+git_repository(
+    name = "com_github_nelhage_rules_boost",
+    branch = "master",
+    remote = "https://github.com/nelhage/rules_boost",
+)
+
+load("@com_github_nelhage_rules_boost//:boost/boost.bzl", "boost_deps")
+boost_deps()
+
+git_repository(
+	name = "pybind11_bazel",
+	branch = "master",
+	remote = "https://github.com/PerfectLaugh/pybind11_bazel",
+)
+new_git_repository(
+	name = "pybind11",
+	build_file = "@pybind11_bazel//:pybind11.BUILD",
+	branch = "master",
+	remote = "https://github.com/pybind/pybind11",
+)
+
+load("@pybind11_bazel//:python_configure.bzl", "python_configure")
+python_configure(name = "local_config_python")
+
+_ALL_CONTENT = """\
+filegroup(
+    name = "all_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//visibility:public"],
+)
+"""
+
+new_git_repository(
+	name = "asmjit",
+	build_file_content = _ALL_CONTENT,
+	branch = "master",
+	remote = "https://github.com/asmjit/asmjit",
+)
+
+new_local_repository(
+	name = "dyncall",
+	path = "thirdparty/dyncall",
+	build_file_content = _ALL_CONTENT,
+)
+
+new_git_repository(
+	name = "DynamicHooks",
+	build_file_content = _ALL_CONTENT,
+	branch = "master",
+	remote = "https://github.com/PerfectLaugh/DynamicHooks",
+)
+
+hl2sdk_csgo_content = """\
+
+cc_import(
+	name = "mathlib",
+	static_library = select({
+		"@bazel_tools//src/conditions:windows": "lib/public/mathlib.lib",
+		"//conditions:default": "lib/linux/mathlib_i486.a",
+	}),
+)
+
+cc_import(
+	name = "tier0",
+	interface_library = select({
+		"@bazel_tools//src/conditions:windows": "lib/public/tier0.lib",
+		"//conditions:default": "lib/linux/libtier0.so",
+	}),
+	system_provided = True,
+)
+
+cc_import(
+	name = "tier1",
+	static_library = select({
+		"@bazel_tools//src/conditions:windows": "lib/public/tier1.lib",
+		"//conditions:default": "lib/linux/tier1_i486.a",
+	}),
+)
+
+cc_import(
+	name = "vstdlib",
+	interface_library = select({
+		"@bazel_tools//src/conditions:windows": "lib/public/vstdlib.lib",
+		"//conditions:default": "lib/linux/libvstdlib.so",
+	}),
+	system_provided = True,
+)
+
+cc_import(
+	name = "interfaces",
+	static_library = select({
+		"@bazel_tools//src/conditions:windows": "lib/public/interfaces.lib",
+		"//conditions:default": "lib/linux/interfaces_i486.a",
+	}),
+)
+
+cc_import(
+	name = "protobuf2",
+	static_library = select({
+		"@bazel_tools//src/conditions:windows": "lib/win32/release/vs2017/libprotobuf.lib",
+		"//conditions:default": "lib/linux32/release/libprotobuf.a",
+	}),
+)
+
+OS_DEFINES = select({
+    "@bazel_tools//src/conditions:windows": ["COMPILER_MSVC", "COMPILER_MSVC32", "_WIN32"],
+    "//conditions:default": ["_LINUX", "POSIX", "LINUX", "GNUC", "COMPILER_GCC"],
+})
+
+cc_library(
+	name = "hl2sdk",
+	includes = [
+		"common",
+		"common/protobuf-2.5.0/src",
+		"game/shared",
+		"game/server",
+		"public",
+		"public/tier0",
+		"public/tier1",
+		"public/engine/protobuf",
+	],
+	deps = [
+		":mathlib",
+		":tier0",
+		":tier1",
+		":vstdlib",
+		":interfaces",
+		":protobuf2",
+	],
+	srcs = [
+		"public/game/shared/csgo/protobuf/cstrike15_usermessages.pb.cc",
+		"public/game/shared/csgo/protobuf/cstrike15_usermessage_helpers.cpp",
+		"public/engine/protobuf/netmessages.pb.cc",
+	],
+	defines = OS_DEFINES + [
+		"SOURCE_ENGINE=csgo",
+		"SOURCE_ENGINE_BRANCH=csgo",
+		"ENGINE_CSGO",
+		"USE_PROTOBUF",
+		"ENGINE_BRANCH_CSGO",
+	],
+
+	visibility = ["//visibility:public"],
+)
+
+"""
+
+new_git_repository(
+	name = "hl2sdk_csgo",
+	branch = "csgo",
+	remote = "https://github.com/alliedmodders/hl2sdk",
+	build_file_content = hl2sdk_csgo_content,
+)
